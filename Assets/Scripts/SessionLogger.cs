@@ -12,7 +12,7 @@ using UnityEngine;
 /// </summary>
 public class SessionLogger : MonoBehaviour
 {
-    public string gameVersion = "1.0";
+    public string gameVersion = "1.1";
 
     string stepsPath;
     string sessionsPath;

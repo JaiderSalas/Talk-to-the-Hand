@@ -21,7 +21,7 @@ public class UIManager : MonoBehaviour
 
     public void UpdateStats(int score, int streak, int lives)
     {
-        statsText.text = $"Score: {score}\nStreak: {streak}\nLives: {lives}";
+        statsText.text = $"Score: {score}\nStreak: {streak}\nLives: {lives}\n[R] Retry";
     }
 
     public void ShowCenter(string s) { centerText.text = s; }

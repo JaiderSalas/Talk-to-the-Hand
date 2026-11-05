@@ -59,10 +59,20 @@ public class GameManager : MonoBehaviour
 
     readonly HashSet<string> pressedKeys = new HashSet<string>();
 
+    static bool keysTutorialSeen;
+    static bool mirrorTutorialSeen;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        keysTutorialSeen = false;
+        mirrorTutorialSeen = false;
+    }
     void Start()
     {
         input.OnMove += HandleMove;
         input.OnConfirm += HandleConfirm;
+        input.OnRetry += HandleRetry;
         ShowMenu();
     }
 
@@ -71,6 +81,7 @@ public class GameManager : MonoBehaviour
         if (input == null) return;
         input.OnMove -= HandleMove;
         input.OnConfirm -= HandleConfirm;
+        input.OnRetry -= HandleRetry;
     }
 
     // ---------- Menu / start / end ----------
@@ -80,7 +91,7 @@ public class GameManager : MonoBehaviour
         state = State.Menu;
         ui.ClearGameplayTexts();
         ui.UpdateStats(0, 0, startingLives);
-        ui.ShowCenter("TALK TO THE HAND\n\nPress SPACE to start");
+        ui.ShowCenter("TALK TO THE HAND\n\nPress SPACE or R to start");
     }
 
     void HandleConfirm()
@@ -102,15 +113,30 @@ public class GameManager : MonoBehaviour
         logger.NewSession();
         ui.ShowCenter("");
         ui.UpdateStats(score, streak, lives);
+        result = Result.Pending;
+        ui.ClearGameplayTexts();
+        ui.SetInstructionColor(Color.white);
         gameRoutine = StartCoroutine(RunGame());
     }
 
     IEnumerator RunGame()
     {
+    bool showIntro = !keysTutorialSeen || !mirrorTutorialSeen;
+
+    if (!keysTutorialSeen)
+    {
         yield return StageKeys();
-        if (!dead) yield return StageMirror();
-        if (!dead) yield return StageSequences();
-        EndGame(!dead);
+        keysTutorialSeen = true; // se marca apenas termina, pase lo que pase después
+    }
+
+    if (!mirrorTutorialSeen)
+    {
+        yield return StageMirror();
+        if (!dead) mirrorTutorialSeen = true;
+    }
+
+    if (!dead) yield return StageSequences(showIntro);
+    EndGame(!dead);
     }
 
     void EndGame(bool completed)
@@ -122,7 +148,7 @@ public class GameManager : MonoBehaviour
         Play(completed ? winClip : loseClip);
         ui.ClearGameplayTexts();
         string title = completed ? "TUTORIAL COMPLETE!" : "GAME OVER";
-        ui.ShowCenter($"{title}\n\nScore: {score}\nBest streak: {bestStreak}\nMistakes: {errors}\nTime: {total:0}s\n\nPress SPACE to play again");
+        ui.ShowCenter($"{title}\n\nScore: {score}\nBest streak: {bestStreak}\nMistakes: {errors}\nTime: {total:0}s\n\nPress SPACE or R to play again");
     }
 
     // ---------- Stages ----------
@@ -161,14 +187,23 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    IEnumerator StageSequences()
+    IEnumerator StageSequences(bool showIntro)
     {
-        state = State.Sequences;
-        stageName = "3-Sequences";
-        ui.SetInstruction("Stage 3: sequences");
-        ui.SetHint("Now left and right sides flip too. A mistake restarts the sequence.");
-        yield return new WaitForSeconds(3f);
-        ui.SetHint("");
+            state = State.Sequences;
+            stageName = "3-Sequences";
+
+        if (showIntro)
+        {
+            ui.SetInstruction("Stage 3: sequences");
+            ui.SetHint("Now left and right sides flip too. A mistake restarts the sequence.");
+            yield return new WaitForSeconds(3f);
+            ui.SetHint("");
+        }
+        else
+        {
+            ui.SetInstruction("Get ready!");
+            yield return new WaitForSeconds(1f);
+        }
 
         int[] lengths = { 3, 3, 4, 4, 5, 5 };
         for (int i = 0; i < lengths.Length && !dead; i++)
@@ -227,7 +262,7 @@ public class GameManager : MonoBehaviour
                     break;
                 }
 
-                ui.SetInstruction("Wrong! Remember: Emy's LEFT = your RIGHT");
+                ui.SetInstruction("Wrong! Remember \n Emy's LEFT = your RIGHT");
                 step = 0; // restart the same sequence
                 yield return new WaitForSeconds(1.4f);
             }
@@ -285,4 +320,10 @@ public class GameManager : MonoBehaviour
     {
         if (sfx != null && clip != null) sfx.PlayOneShot(clip);
     }
+    void HandleRetry()
+{
+    if (state == State.Keys || state == State.Mirror || state == State.Sequences)
+        logger.LogSummary(false, score, bestStreak, errors, Mathf.Max(lives, 0), Time.time - sessionStart);
+    StartGame();
+}
 }

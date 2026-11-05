@@ -14,7 +14,7 @@ public class InputReader : MonoBehaviour
 {
     public event Action<Move> OnMove;
     public event Action OnConfirm;
-
+    public event Action OnRetry;
     void Update()
     {
         Keyboard kb = Keyboard.current;
@@ -33,6 +33,7 @@ public class InputReader : MonoBehaviour
         if (kb.rightArrowKey.wasPressedThisFrame) Fire(Hand.Right, Direction.Right);
 
         if (kb.spaceKey.wasPressedThisFrame) OnConfirm?.Invoke();
+        if (kb.rKey.wasPressedThisFrame) OnRetry?.Invoke();
     }
 
     void Fire(Hand hand, Direction dir)
